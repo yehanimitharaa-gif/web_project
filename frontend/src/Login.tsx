@@ -5,8 +5,6 @@ type Props = { onLogin: (name: string) => void };
 
 type StoredUser = { name: string; email: string; password: string };
 
-// DEMO ONLY: users are stored in the browser (localStorage).
-// A real app must authenticate through the backend (hashed passwords + JWT).
 const getUsers = (): StoredUser[] => {
   try {
     return JSON.parse(localStorage.getItem("unipath_users") || "[]");

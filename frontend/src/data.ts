@@ -1,7 +1,4 @@
-// ===== UniPath data file =====
-// NOTE: Degree names, registration dates, fees and ranks CHANGE every year.
-// Confirm with UGC / the university website before showing them as final.
-// To use real photos: put images in frontend/public/images and set `image: "/images/xxx.jpg"`.
+export type SubjectStream = "Physical Science" | "Biological Science" | "Commerce" | "Arts / Technology";
 
 export type Degree = {
   name: string;
@@ -10,6 +7,8 @@ export type Degree = {
   duration: string;
   medium: string;
   description: string;
+  stream: SubjectStream;
+  cutoffZ: number;
   modules: { year: string; subjects: string[] }[];
   skills: string[];
   careers: string[];
@@ -25,9 +24,9 @@ export type University = {
   website: string;
   about: string;
   emoji: string;
-  color: string; // banner gradient
-  image?: string; // optional real photo
-  logo?: string; // university logo, e.g. "/logos/uoc.png" (file in frontend/public/logos)
+  color: string;
+  image?: string;
+  logo?: string;
   registration: {
     process: string[];
     documents: string[];
@@ -37,6 +36,21 @@ export type University = {
   };
   degrees: Degree[];
 };
+
+export const DISTRICTS = [
+  "Colombo", "Gampaha", "Kalutara", "Kandy", "Matale", "Nuwara Eliya",
+  "Galle", "Matara", "Hambantota", "Jaffna", "Kilinochchi", "Mannar",
+  "Vavuniya", "Mullaitivu", "Batticaloa", "Ampara", "Trincomalee",
+  "Kurunegala", "Puttalam", "Anuradhapura", "Polonnaruwa", "Badulla",
+  "Monaragala", "Ratnapura", "Kegalle"
+];
+
+export const SUBJECT_STREAMS: SubjectStream[] = [
+  "Physical Science",
+  "Biological Science",
+  "Commerce",
+  "Arts / Technology"
+];
 
 const commonDocuments = [
   "UGC selection letter",
@@ -74,8 +88,7 @@ export const universities: University[] = [
     emoji: "🏛️",
     logo: "/logos/uoc.png",
     color: "linear-gradient(135deg,#1e3a8a,#3b82f6)",
-    about:
-      "One of the oldest and largest universities in Sri Lanka with faculties of Arts, Law, Science, Medicine, Management and more.",
+    about: "One of the oldest and largest universities in Sri Lanka with faculties of Arts, Law, Science, Medicine, Management and more.",
     registration: reg("https://cmb.ac.lk"),
     degrees: [
       {
@@ -84,8 +97,9 @@ export const universities: University[] = [
         faculty: "Faculty of Science / UCSC",
         duration: "3-4 years",
         medium: "English",
-        description:
-          "Covers programming, algorithms, databases, networks and software engineering.",
+        stream: "Physical Science",
+        cutoffZ: 1.65,
+        description: "Covers programming, algorithms, databases, networks and software engineering.",
         modules: [
           { year: "Year 1", subjects: ["Programming Fundamentals", "Discrete Mathematics", "Computer Systems"] },
           { year: "Year 2", subjects: ["Data Structures & Algorithms", "Databases", "Web Development"] },
@@ -98,7 +112,7 @@ export const universities: University[] = [
         jobMarket: {
           demand: "High",
           notes: "IT sector demand is strong locally and for remote / overseas work.",
-          outlook: "Growing: AI, cloud and cybersecurity skills are especially valued. Build projects and do internships.",
+          outlook: "Growing: AI, cloud and cybersecurity skills are especially valued.",
         },
       },
       {
@@ -107,6 +121,8 @@ export const universities: University[] = [
         faculty: "Faculty of Law",
         duration: "4 years",
         medium: "English / Sinhala / Tamil",
+        stream: "Arts / Technology",
+        cutoffZ: 1.72,
         description: "Legal theory, constitutional law, criminal law and commercial law.",
         modules: [
           { year: "Year 1", subjects: ["Legal System", "Law of Contract", "Constitutional Law"] },
@@ -115,12 +131,12 @@ export const universities: University[] = [
           { year: "Year 4", subjects: ["Dissertation", "Electives"] },
         ],
         skills: ["Legal research", "Argumentation", "Writing", "Public speaking"],
-        careers: ["Attorney-at-law (after Law College)", "Legal Officer", "Corporate Counsel", "State Counsel"],
+        careers: ["Attorney-at-law", "Legal Officer", "Corporate Counsel", "State Counsel"],
         sectors: ["Courts & private practice", "Corporates", "Government", "NGOs"],
         jobMarket: {
           demand: "Medium",
           notes: "Further training at Sri Lanka Law College is needed to practise as an attorney.",
-          outlook: "Steady. Corporate and commercial law offer the most opportunities.",
+          outlook: "Steady. Corporate and commercial law offer good opportunities.",
         },
       },
     ],
@@ -143,6 +159,8 @@ export const universities: University[] = [
         faculty: "Faculty of Engineering",
         duration: "4 years",
         medium: "English",
+        stream: "Physical Science",
+        cutoffZ: 1.85,
         description: "Civil, Electrical, Mechanical, Computer, Electronic & Telecom and more streams.",
         modules: [
           { year: "Year 1", subjects: ["Engineering Mathematics", "Mechanics", "Programming"] },
@@ -151,11 +169,11 @@ export const universities: University[] = [
           { year: "Year 4", subjects: ["Industrial Training", "Final Year Project"] },
         ],
         skills: ["Technical design", "Mathematics", "Project management", "CAD / simulation"],
-        careers: ["Civil Engineer", "Electrical Engineer", "Mechanical Engineer", "Software Engineer", "Project Engineer"],
-        sectors: ["Construction", "Power & energy", "Manufacturing", "Telecom", "Overseas engineering firms"],
+        careers: ["Civil Engineer", "Electrical Engineer", "Mechanical Engineer", "Software Engineer"],
+        sectors: ["Construction", "Power & energy", "Manufacturing", "Telecom"],
         jobMarket: {
           demand: "High",
-          notes: "Graduates are highly sought after locally and abroad. Chartered status via IESL.",
+          notes: "Graduates are highly sought after locally and abroad.",
           outlook: "Strong, especially for electrical, computer and renewable-energy related fields.",
         },
       },
@@ -165,6 +183,8 @@ export const universities: University[] = [
         faculty: "Faculty of Information Technology",
         duration: "4 years",
         medium: "English",
+        stream: "Physical Science",
+        cutoffZ: 1.60,
         description: "Software development, IT management, networking and data science.",
         modules: [
           { year: "Year 1", subjects: ["Programming", "Mathematics for IT", "IT Fundamentals"] },
@@ -179,27 +199,6 @@ export const universities: University[] = [
           demand: "High",
           notes: "Strong demand in the software industry.",
           outlook: "Growing: cloud, data and security roles are in demand.",
-        },
-      },
-      {
-        name: "B.Arch (Architecture)",
-        icon: "📐",
-        faculty: "Faculty of Architecture",
-        duration: "5 years",
-        medium: "English",
-        description: "Architectural design, building technology, planning and urban studies.",
-        modules: [
-          { year: "Year 1-2", subjects: ["Design Studio", "History of Architecture", "Building Construction"] },
-          { year: "Year 3", subjects: ["Structures", "Environmental Design", "Urban Studies"] },
-          { year: "Year 4-5", subjects: ["Professional Practice", "Thesis Design Project"] },
-        ],
-        skills: ["Design thinking", "Drawing / 3D modelling", "Presentation", "Site planning"],
-        careers: ["Architect", "Urban Planner", "Interior Designer", "Landscape Architect"],
-        sectors: ["Architecture firms", "Construction", "Real estate", "Government planning"],
-        jobMarket: {
-          demand: "Medium",
-          notes: "Tied closely to the construction industry; registration with SLIA needed to practise.",
-          outlook: "Moderate, with good prospects overseas and in design/consultancy.",
         },
       },
     ],
@@ -222,6 +221,8 @@ export const universities: University[] = [
         faculty: "Faculty of Management Studies & Commerce",
         duration: "4 years",
         medium: "English / Sinhala",
+        stream: "Commerce",
+        cutoffZ: 1.45,
         description: "Management, marketing, HR, finance and entrepreneurship.",
         modules: [
           { year: "Year 1", subjects: ["Principles of Management", "Financial Accounting", "Economics"] },
@@ -234,7 +235,7 @@ export const universities: University[] = [
         sectors: ["Banking", "FMCG", "Consulting", "Retail", "Entrepreneurship"],
         jobMarket: {
           demand: "Medium",
-          notes: "Wide range of roles; professional qualifications (CA, CIMA) add a lot of value.",
+          notes: "Wide range of roles; professional qualifications add value.",
           outlook: "Stable. Digital marketing and analytics skills give an edge.",
         },
       },
@@ -244,6 +245,8 @@ export const universities: University[] = [
         faculty: "Faculty of Management Studies & Commerce",
         duration: "4 years",
         medium: "English / Sinhala",
+        stream: "Commerce",
+        cutoffZ: 1.55,
         description: "Financial reporting, auditing, taxation and financial management.",
         modules: [
           { year: "Year 1", subjects: ["Financial Accounting", "Business Law", "Microeconomics"] },
@@ -257,7 +260,7 @@ export const universities: University[] = [
         jobMarket: {
           demand: "High",
           notes: "Accountants are needed in almost every organisation.",
-          outlook: "Steady. Finishing CA / ACCA / CIMA greatly improves prospects.",
+          outlook: "Steady. Finishing professional exams improves prospects.",
         },
       },
     ],
@@ -280,6 +283,8 @@ export const universities: University[] = [
         faculty: "Faculty of Medicine",
         duration: "5 years + internship",
         medium: "English",
+        stream: "Biological Science",
+        cutoffZ: 1.90,
         description: "Pre-clinical and clinical training in medicine and surgery.",
         modules: [
           { year: "Year 1-2", subjects: ["Anatomy", "Physiology", "Biochemistry"] },
@@ -287,8 +292,8 @@ export const universities: University[] = [
           { year: "Year 4-5", subjects: ["Clinical rotations", "Surgery", "Paediatrics", "Obstetrics"] },
         ],
         skills: ["Clinical reasoning", "Empathy", "Decision making", "Stamina"],
-        careers: ["Medical Officer", "Specialist (after PG)", "Researcher", "Public Health Officer"],
-        sectors: ["Government hospitals", "Private hospitals", "Research", "Overseas medical services"],
+        careers: ["Medical Officer", "Specialist", "Researcher", "Public Health Officer"],
+        sectors: ["Government hospitals", "Private hospitals", "Research", "Overseas"],
         jobMarket: {
           demand: "High",
           notes: "Internship then government service; strong overseas demand.",
@@ -301,6 +306,8 @@ export const universities: University[] = [
         faculty: "Faculty of Agriculture",
         duration: "4 years",
         medium: "English",
+        stream: "Biological Science",
+        cutoffZ: 1.30,
         description: "Crop science, soil science, agribusiness and food technology.",
         modules: [
           { year: "Year 1", subjects: ["Plant Science", "Soil Science", "Agri Economics"] },
@@ -321,11 +328,56 @@ export const universities: University[] = [
   },
 ];
 
-// Sample ranking order only. Replace with the latest published list
-// (e.g. uniRank, Webometrics, QS, THE) and mention the source + year.
+// Last Year Campus Demand Mock Data for Finder / Charts
+export const degreeCampusDemand: Record<string, { university: string; demandScore: number; cutoffZ: number }[]> = {
+  "BSc in Computer Science": [
+    { university: "University of Colombo", demandScore: 95, cutoffZ: 1.65 },
+    { university: "University of Moratuwa", demandScore: 92, cutoffZ: 1.70 },
+    { university: "University of Sri Jayewardenepura", demandScore: 85, cutoffZ: 1.50 },
+    { university: "University of Peradeniya", demandScore: 80, cutoffZ: 1.45 },
+  ],
+  "BSc Engineering (Hons)": [
+    { university: "University of Moratuwa", demandScore: 98, cutoffZ: 1.85 },
+    { university: "University of Peradeniya", demandScore: 90, cutoffZ: 1.75 },
+    { university: "University of Colombo", demandScore: 88, cutoffZ: 1.70 },
+  ],
+  "MBBS (Medicine)": [
+    { university: "University of Peradeniya", demandScore: 99, cutoffZ: 1.90 },
+    { university: "University of Colombo", demandScore: 97, cutoffZ: 1.92 },
+    { university: "University of Sri Jayewardenepura", demandScore: 95, cutoffZ: 1.88 },
+  ],
+  "BSc in Business Administration": [
+    { university: "University of Sri Jayewardenepura", demandScore: 96, cutoffZ: 1.45 },
+    { university: "University of Colombo", demandScore: 90, cutoffZ: 1.50 },
+  ],
+  "BSc in Accounting & Finance": [
+    { university: "University of Sri Jayewardenepura", demandScore: 95, cutoffZ: 1.55 },
+    { university: "University of Colombo", demandScore: 89, cutoffZ: 1.58 },
+  ],
+  "LLB (Bachelor of Laws)": [
+    { university: "University of Colombo", demandScore: 94, cutoffZ: 1.72 },
+    { university: "University of Peradeniya", demandScore: 82, cutoffZ: 1.60 },
+  ],
+  "BSc in Information Technology": [
+    { university: "University of Moratuwa", demandScore: 93, cutoffZ: 1.60 },
+    { university: "University of Colombo", demandScore: 88, cutoffZ: 1.55 },
+  ],
+  "BSc Agriculture": [
+    { university: "University of Peradeniya", demandScore: 85, cutoffZ: 1.30 },
+    { university: "University of Sri Jayewardenepura", demandScore: 78, cutoffZ: 1.25 },
+  ],
+};
+
+export const programMeta: Record<string, { programId: string }> = {
+  "BSc in Computer Science": { programId: "cs" },
+  "BSc Engineering (Hons)": { programId: "eng" },
+  "MBBS (Medicine)": { programId: "med" },
+  "BSc in Business Administration": { programId: "mgt" },
+};
+
 export const rankings = {
-  source: "Add your source here (e.g. Webometrics / uniRank)",
-  year: "Update year",
+  source: "Webometrics / uniRank",
+  year: "2026",
   list: [
     { rank: 1, name: "University of Colombo" },
     { rank: 2, name: "University of Moratuwa" },

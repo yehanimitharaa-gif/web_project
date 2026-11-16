@@ -1,14 +1,29 @@
 import { useState } from "react";
 import "./App.css";
+import Chatbot from "./Chatbot";
 import Login from "./Login";
+import Hostel from "./Hostel";
+import Finder from "./Finder";
+import DemandChart from "./DemandChart";
 import { universities, rankings } from "./data";
 import type { University, Degree } from "./data";
+import { programMeta } from "./demand";
 
-type Page = "home" | "ranking";
+type Page = "home" | "ranking" | "finder" | "hostel";
 type Tab = "about" | "registration" | "degrees";
-type DegTab = "overview" | "modules" | "jobs";
+type DegTab = "overview" | "modules" | "jobs" | "demand";
 
 const demandPercent = { High: 90, Medium: 60, Low: 30 };
+
+// Z-score saved by the "Find my degree" page (used to draw a marker on the cut-off chart)
+const savedZ = (): number | undefined => {
+  try {
+    const p = JSON.parse(localStorage.getItem("unipath_profile") || "null");
+    return typeof p?.zscore === "number" ? p.zscore : undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 const logoBox = (size: number) => ({
   width: size,
@@ -93,12 +108,25 @@ function App() {
     setDegTab("overview");
   };
 
+  // called from the "Find my degree" page
+  const openFromFinder = (u: University, d: Degree) => {
+    setPage("home");
+    setSelected(u);
+    setTab("degrees");
+    setDegree(d);
+    setDegTab("demand");
+  };
+
+  const programId = degree ? programMeta[degree.name]?.programId : undefined;
+
   return (
     <div className="app">
       <header className="header">
         <h1 onClick={goHome}>UniPath 🎓</h1>
         <nav>
           <button onClick={goHome}>Universities</button>
+          <button onClick={() => { setSelected(null); setDegree(null); setPage("finder"); }}>🎯 Find my degree</button>
+          <button onClick={() => { setSelected(null); setDegree(null); setPage("hostel"); }}>🏠 Hostels</button>
           <button onClick={() => setPage("ranking")}>Rankings</button>
           <span className="user">👤 {user}</span>
           <button onClick={logout}>Logout</button>
@@ -106,6 +134,10 @@ function App() {
       </header>
 
       <main className="main">
+        {page === "finder" && <Finder onOpen={openFromFinder} />}
+
+        {page === "hostel" && <Hostel initialUniId={selected?.id} />}
+
         {page === "ranking" && (
           <section>
             <h2>🏆 University Rankings</h2>
@@ -244,13 +276,19 @@ function App() {
                 </div>
 
                 <div className="tabs">
-                  {(["overview", "modules", "jobs"] as DegTab[]).map((t) => (
+                  {(["overview", "modules", "jobs", "demand"] as DegTab[]).map((t) => (
                     <button
                       key={t}
                       className={degTab === t ? "tab active" : "tab"}
                       onClick={() => setDegTab(t)}
                     >
-                      {t === "overview" ? "Overview" : t === "modules" ? "Course Content" : "💼 Job Market"}
+                      {t === "overview"
+                        ? "Overview"
+                        : t === "modules"
+                        ? "Course Content"
+                        : t === "jobs"
+                        ? "💼 Job Market"
+                        : "📊 Campus Demand"}
                     </button>
                   ))}
                 </div>
@@ -295,6 +333,17 @@ function App() {
                     <p>{degree.jobMarket.outlook}</p>
                   </div>
                 )}
+
+                {degTab === "demand" && (
+                  <div>
+                    <h4>Which campus had the highest demand last year?</h4>
+                    {programId ? (
+                      <DemandChart programId={programId} highlightUniId={selected.id} userZ={savedZ()} />
+                    ) : (
+                      <p className="muted">No demand data for this degree yet.</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -304,6 +353,8 @@ function App() {
       <footer className="footer">
         Information may change yearly. Always confirm with UGC and the university.
       </footer>
+
+      <Chatbot currentUni={selected} />
     </div>
   );
 }
