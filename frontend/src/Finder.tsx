@@ -2,16 +2,17 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { universities } from "./data";
 import type { University, Degree } from "./data";
-import { streams, districts, interestTags, programTitle } from "./demand";
-import type { Stream } from "./demand";
-import { suggest, topDemandCampus } from "./suggest";
-import type { Profile, Suggestion } from "./suggest";
+import { streams, districts, interestTags, programTitle } from "./Demand";
+import type { Stream } from "./Demand";
+import { suggest, topDemandCampus } from "./Suggest";
+import type { Profile, Suggestion } from "./Suggest";
 import DemandChart from "./DemandChart";
 import "./Finder.css";
 
 type Props = { onOpen: (uni: University, degree: Degree) => void };
 
 const STORAGE_KEY = "unipath_profile";
+const RESULTS_KEY = "unipath_last_results";
 const cities = Array.from(new Set(universities.map((u) => u.location)));
 
 const loadProfile = (): Profile | null => {
@@ -22,14 +23,24 @@ const loadProfile = (): Profile | null => {
   }
 };
 
+const loadSavedResults = (): Suggestion[] | null => {
+  try {
+    return JSON.parse(localStorage.getItem(RESULTS_KEY) || "null");
+  } catch {
+    return null;
+  }
+};
+
 function Finder({ onOpen }: Props) {
   const saved = loadProfile();
+  const savedResults = loadSavedResults();
 
-  // compulsory
+  // compulsory fields
   const [z, setZ] = useState(saved ? String(saved.zscore) : "");
   const [district, setDistrict] = useState(saved?.district ?? "");
   const [stream, setStream] = useState<Stream | "">(saved?.stream ?? "");
-  // optional
+  
+  // optional preferences
   const [interests, setInterests] = useState<string[]>(saved?.interests ?? []);
   const [medium, setMedium] = useState(saved?.medium ?? "Any");
   const [location, setLocation] = useState(saved?.location ?? "Any");
@@ -37,14 +48,14 @@ function Finder({ onOpen }: Props) {
 
   const [error, setError] = useState("");
   const [profile, setProfile] = useState<Profile | null>(saved);
-  const [results, setResults] = useState<Suggestion[] | null>(saved ? suggest(saved) : null);
+  const [results, setResults] = useState<Suggestion[] | null>(savedResults || (saved ? suggest(saved) : null));
   const [showAll, setShowAll] = useState(false);
   const [openChart, setOpenChart] = useState<string | null>(null);
 
   const toggleInterest = (t: string) =>
     setInterests((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const zNum = parseFloat(z);
     if (Number.isNaN(zNum) || zNum < -3 || zNum > 4) {
@@ -55,24 +66,109 @@ function Finder({ onOpen }: Props) {
     if (!stream) return setError("Select your A/L subject stream.");
     setError("");
 
-    const p: Profile = {
-      zscore: zNum,
-      district,
-      stream,
-      interests,
-      medium,
-      location,
-      preferHighDemand: preferHigh,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
-    setProfile(p);
-    setResults(suggest(p));
-    setShowAll(false);
-    setOpenChart(null);
+    try {
+      // SQLite Backend API එකට Request එක යැවීම
+      const response = await fetch('http://localhost:5000/api/courses/suggest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          zScore: zNum,
+          district: district,
+          stream: stream
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const p: Profile = {
+          zscore: zNum,
+          district,
+          stream,
+          interests,
+          medium,
+          location,
+          preferHighDemand: preferHigh,
+        };
+        
+        // Backend එකෙන් එන දත්ත UI එකේ Suggestion format එකට සැකසීම
+        const formattedResults: Suggestion[] = result.data.map((item: any) => {
+          const matchedUni = universities.find(
+            (u) => u.name.toLowerCase().includes(item.university.toLowerCase()) || u.shortName === item.shortName
+          ) || {
+            id: item.code,
+            name: item.university,
+            shortName: item.shortName || "UNI",
+            location: item.university.replace("University of ", ""),
+            lat: 6.9271,
+            lng: 79.8612,
+            degrees: []
+          };
+
+          let parsedModules = [];
+          let parsedJobMarket: any = {};
+          try {
+            parsedModules = typeof item.yearContent === "string" ? JSON.parse(item.yearContent) : (item.yearContent || []);
+            parsedJobMarket = typeof item.jobMarket === "string" ? JSON.parse(item.jobMarket) : (item.jobMarket || {});
+          } catch (e) {
+            parsedModules = [];
+            parsedJobMarket = {};
+          }
+
+          const degreeObj: Degree = {
+            name: item.name,
+            duration: item.duration || "3 / 4 Years",
+            medium: item.medium || "English",
+            icon: "🎓",
+            faculty: item.faculty || "Faculty of Science / Engineering",
+            description: item.overview || `${item.name} offered by ${item.university}.`,
+            skills: ["Problem Solving", "Analytical Thinking", "Research & Development", "Teamwork"],
+            modules: parsedModules.length > 0 ? parsedModules : [],
+            careers: parsedJobMarket.topRoles || ["Software Engineer", "Specialist"],
+            sectors: parsedJobMarket.topEmployers || ["Leading Corporations"],
+            jobMarket: {
+              demand: (item.jobDemand === "Very High" || item.jobDemand === "High") ? "High" : "Medium",
+              notes: parsedJobMarket.averageSalary ? `Estimated Starting Salary: ${parsedJobMarket.averageSalary}` : "Strong industry demand.",
+              outlook: "Rapidly growing field with high employability."
+            }
+          } as Degree;
+
+          const diff = item.margin || 0;
+          const matchScore = Math.min(99, Math.max(55, Math.round(80 + diff * 40)));
+
+          return {
+            uni: matchedUni,
+            degree: degreeObj,
+            programId: item.code.toLowerCase().includes("cs") || item.name.toLowerCase().includes("computer") ? "cs" : "eng",
+            score: matchScore,
+            chance: item.chance || "Likely",
+            reasons: [
+              `Last year's ${district} district cut-off: ${item.cutoff}`,
+              `Your Z-score margin: ${diff >= 0 ? "+" : ""}${diff.toFixed(4)}`,
+              `Job demand: ${item.jobDemand || "High"}`
+            ]
+          };
+        });
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+        localStorage.setItem(RESULTS_KEY, JSON.stringify(formattedResults));
+        setProfile(p);
+        setResults(formattedResults);
+        setShowAll(false);
+      } else {
+        setError("Failed to fetch suggestions from server.");
+      }
+    } catch (err) {
+      console.error("API Error:", err);
+      setError("Could not connect to backend server. Make sure backend is running.");
+    }
   };
 
   const reset = () => {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(RESULTS_KEY);
     setResults(null);
     setProfile(null);
     setZ("");
@@ -197,15 +293,17 @@ function Finder({ onOpen }: Props) {
                     {s.reasons.map((r) => <li key={r}>{r}</li>)}
                   </ul>
 
-                  <p className="sg-demand">
-                    📊 Last year’s highest demand for {programTitle[s.programId]}: <strong>{top.campus}</strong> ({top.applicants.toLocaleString()} applicants)
-                  </p>
+                  {top && (
+                    <p className="sg-demand">
+                      📊 Last year’s highest demand for {programTitle[s.programId] || s.degree.name}: <strong>{top.campus}</strong> ({top.applicants.toLocaleString()} applicants)
+                    </p>
+                  )}
 
                   <div className="form-actions">
-                    <button className="ghost" onClick={() => setOpenChart(openChart === key ? null : key)}>
+                    <button type="button" className="ghost" onClick={() => setOpenChart(openChart === key ? null : key)}>
                       {openChart === key ? "Hide demand chart" : "📊 Demand by campus"}
                     </button>
-                    <button className="primary small" onClick={() => onOpen(s.uni, s.degree)}>
+                    <button type="button" className="primary small" onClick={() => onOpen(s.uni, s.degree)}>
                       Open degree ↗
                     </button>
                   </div>
@@ -219,7 +317,7 @@ function Finder({ onOpen }: Props) {
           })}
 
           {results.length > 5 && (
-            <button className="ghost" onClick={() => setShowAll(!showAll)}>
+            <button type="button" className="ghost" onClick={() => setShowAll(!showAll)}>
               {showAll ? "Show top 5 only" : `Show all ${results.length} matches`}
             </button>
           )}
