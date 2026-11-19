@@ -1,21 +1,16 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-
-dotenv.config();
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
+const db = require('./database'); // SQLite connection එක load කරයි
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-
-// Middleware
-app.use(cors());
 app.use(express.json());
+app.use(cors());
 
-// Sample Route
-app.get("/api/message", (req, res) => {
-  res.json({ message: "Hello from the Node.js Express server!" });
-});
+// Routes
+app.use('/api/courses', require('./routes/courseRoutes'));
 
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`🚀 SQL Backend Server running on port ${PORT}`);
 });

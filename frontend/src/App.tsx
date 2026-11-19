@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 import Chatbot from "./Chatbot";
 import Login from "./Login";
@@ -7,15 +7,22 @@ import Finder from "./Finder";
 import DemandChart from "./DemandChart";
 import { universities, rankings } from "./data";
 import type { University, Degree } from "./data";
-import { programMeta } from "./demand";
+import { programMeta } from "./Demand";
 
 type Page = "home" | "ranking" | "finder" | "hostel";
 type Tab = "about" | "registration" | "degrees";
 type DegTab = "overview" | "modules" | "jobs" | "demand";
 
+type NavState = {
+  page: Page;
+  selected: University | null;
+  tab: Tab;
+  degree: Degree | null;
+  degTab: DegTab;
+};
+
 const demandPercent = { High: 90, Medium: 60, Low: 30 };
 
-// Z-score saved by the "Find my degree" page (used to draw a marker on the cut-off chart)
 const savedZ = (): number | undefined => {
   try {
     const p = JSON.parse(localStorage.getItem("unipath_profile") || "null");
@@ -23,6 +30,19 @@ const savedZ = (): number | undefined => {
   } catch {
     return undefined;
   }
+};
+
+const getUniShortName = (uni: any): string => {
+  if (uni.shortName) return uni.shortName;
+  const name = uni.name.toLowerCase();
+  if (name.includes("colombo")) return "UoC";
+  if (name.includes("moratuwa")) return "UoM";
+  if (name.includes("peradeniya")) return "UoP";
+  if (name.includes("jayewardenepura")) return "USJ";
+  if (name.includes("kelaniya")) return "UoK";
+  if (name.includes("ruhuna")) return "UoR";
+  if (name.includes("jaffna")) return "UoJ";
+  return uni.id;
 };
 
 const logoBox = (size: number) => ({
@@ -74,15 +94,60 @@ function App() {
   const [degree, setDegree] = useState<Degree | null>(null);
   const [degTab, setDegTab] = useState<DegTab>("overview");
 
+  const [history, setHistory] = useState<NavState[]>([]);
+
+  const [dbDegrees, setDbDegrees] = useState<any[]>([]);
+  const [loadingDegrees, setLoadingDegrees] = useState(false);
+
+  const pushHistory = () => {
+    setHistory((prev) => [...prev, { page, selected, tab, degree, degTab }]);
+  };
+
+  const handleGlobalBack = () => {
+    if (history.length === 0) return;
+    const previousState = history[history.length - 1];
+    setHistory((prev) => prev.slice(0, -1));
+
+    setPage(previousState.page);
+    setSelected(previousState.selected);
+    setTab(previousState.tab);
+    setDegree(previousState.degree);
+    setDegTab(previousState.degTab);
+  };
+
+  useEffect(() => {
+    if (selected && tab === "degrees") {
+      setLoadingDegrees(true);
+      const shortName = getUniShortName(selected);
+      fetch(`http://localhost:5000/api/courses/university/${shortName}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setDbDegrees(data.data);
+          } else {
+            setDbDegrees([]);
+          }
+          setLoadingDegrees(false);
+        })
+        .catch((err) => {
+          console.error("Error fetching university degrees:", err);
+          setDbDegrees([]);
+          setLoadingDegrees(false);
+        });
+    }
+  }, [selected, tab]);
+
   const login = (name: string) => {
     localStorage.setItem("unipath_current", name);
     setUser(name);
   };
+
   const logout = () => {
     localStorage.removeItem("unipath_current");
     setUser(null);
     setSelected(null);
     setDegree(null);
+    setHistory([]);
   };
 
   if (!user) return <Login onLogin={login} />;
@@ -91,30 +156,35 @@ function App() {
     (u.name + u.location).toLowerCase().includes(search.toLowerCase())
   );
 
-  const goHome = () => {
+  const navigateToPage = (targetPage: Page) => {
+    if (page === targetPage && !selected && !degree) return;
+    pushHistory();
     setSelected(null);
     setDegree(null);
-    setPage("home");
+    setPage(targetPage);
   };
 
   const openUni = (u: University) => {
+    pushHistory();
     setSelected(u);
     setTab("about");
     setDegree(null);
+    setDbDegrees([]);
   };
 
   const openDegree = (d: Degree) => {
+    pushHistory();
     setDegree(d);
     setDegTab("overview");
   };
 
-  // called from the "Find my degree" page
   const openFromFinder = (u: University, d: Degree) => {
+    pushHistory();
     setPage("home");
     setSelected(u);
     setTab("degrees");
     setDegree(d);
-    setDegTab("demand");
+    setDegTab("overview");
   };
 
   const programId = degree ? programMeta[degree.name]?.programId : undefined;
@@ -122,18 +192,33 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1 onClick={goHome}>UniPath 🎓</h1>
+        <h1 onClick={() => navigateToPage("home")} style={{ cursor: "pointer" }}>
+          UniPath 🎓
+        </h1>
         <nav>
-          <button onClick={goHome}>Universities</button>
-          <button onClick={() => { setSelected(null); setDegree(null); setPage("finder"); }}>🎯 Find my degree</button>
-          <button onClick={() => { setSelected(null); setDegree(null); setPage("hostel"); }}>🏠 Hostels</button>
-          <button onClick={() => setPage("ranking")}>Rankings</button>
+          <button type="button" onClick={() => navigateToPage("home")}>Universities</button>
+          <button type="button" onClick={() => navigateToPage("finder")}>🎯 Find my degree</button>
+          <button type="button" onClick={() => navigateToPage("hostel")}>🏠 Hostels</button>
+          <button type="button" onClick={() => navigateToPage("ranking")}>Rankings</button>
           <span className="user">👤 {user}</span>
-          <button onClick={logout}>Logout</button>
+          <button type="button" onClick={logout}>Logout</button>
         </nav>
       </header>
 
       <main className="main">
+        {/* අනෙකුත් පිටු වලදී (Finder, Hostels වැනි) පෙන්වන Back බොත්තම */}
+        {history.length > 0 && !selected && (
+          <div style={{ marginBottom: "16px" }}>
+            <button
+              type="button"
+              className="back"
+              onClick={handleGlobalBack}
+            >
+              ← Back
+            </button>
+          </div>
+        )}
+
         {page === "finder" && <Finder onOpen={openFromFinder} />}
 
         {page === "hostel" && <Hostel initialUniId={selected?.id} />}
@@ -193,7 +278,7 @@ function App() {
                     <h3>{u.name}</h3>
                     <p className="muted">📍 {u.location}</p>
                     <p>{u.about}</p>
-                    <span className="badge">{u.degrees.length} degree programs</span>
+                    <span className="badge">Explore Degrees ↗</span>
                   </div>
                 </div>
               ))}
@@ -204,14 +289,35 @@ function App() {
 
         {page === "home" && selected && (
           <section>
-            <button className="back" onClick={() => { setSelected(null); setDegree(null); }}>
-              ← All universities
-            </button>
+            {/* "All universities" සහ History Back බොත්තම එකම පේළියක දකුණු පැත්තෙන් */}
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "16px", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="back"
+                style={{ position: "relative", zIndex: 10, cursor: "pointer", margin: 0 }}
+                onClick={() => { pushHistory(); setSelected(null); setDegree(null); }}
+              >
+                ← All universities
+              </button>
+
+              {history.length > 0 && (
+                <button
+                  type="button"
+                  className="back"
+                  style={{ position: "relative", zIndex: 10, cursor: "pointer", margin: 0 }}
+                  onClick={handleGlobalBack}
+                >
+                  ← Back
+                </button>
+              )}
+            </div>
+
             <Banner uni={selected} />
 
             <div className="tabs">
               {(["about", "registration", "degrees"] as Tab[]).map((t) => (
                 <button
+                  type="button"
                   key={t}
                   className={tab === t ? "tab active" : "tab"}
                   onClick={() => { setTab(t); setDegree(null); }}
@@ -245,28 +351,65 @@ function App() {
             )}
 
             {tab === "degrees" && !degree && (
-              <div className="grid">
-                {selected.degrees.map((d) => (
-                  <div key={d.name} className="card" onClick={() => openDegree(d)}>
-                    <div className="card-img small" style={{ background: selected.color }}>
-                      <span>{d.icon}</span>
-                    </div>
-                    <div className="card-body">
-                      <h3>{d.name}</h3>
-                      <p className="muted">{d.faculty}</p>
-                      <p>{d.description}</p>
-                      <span className="badge">{d.duration}</span>
-                      <span className="badge">{d.medium}</span>
-                      <span className={"demand " + d.jobMarket.demand}>{d.jobMarket.demand} demand</span>
-                    </div>
+              <div>
+                {loadingDegrees ? (
+                  <p>Loading database degrees...</p>
+                ) : dbDegrees.length > 0 ? (
+                  <div className="grid">
+                    {dbDegrees.map((d) => {
+                      const mappedDeg: Degree = {
+                        name: d.name,
+                        duration: d.duration || "3 / 4 Years",
+                        medium: d.medium || "English",
+                        icon: "🎓",
+                        faculty: d.faculty || "Faculty",
+                        description: d.overview || `${d.name} offered by ${d.university}.`,
+                        skills: ["Analytical Thinking", "Problem Solving", "Technical Expertise", "Research"],
+                        modules: Array.isArray(d.yearContent) ? d.yearContent : [],
+                        careers: d.jobMarket?.topRoles || [],
+                        sectors: d.jobMarket?.topEmployers || [],
+                        jobMarket: {
+                          demand: (d.jobDemand === "Very High" || d.jobDemand === "High") ? "High" : "Medium",
+                          notes: d.jobMarket?.averageSalary ? `Starting Salary: ${d.jobMarket.averageSalary}` : "Strong industry demand.",
+                          outlook: "Excellent career growth and international opportunities."
+                        }
+                      } as Degree;
+
+                      return (
+                        <div key={d.code} className="card" onClick={() => openDegree(mappedDeg)}>
+                          <div className="card-img small" style={{ background: selected.color }}>
+                            <span>🎓</span>
+                          </div>
+                          <div className="card-body">
+                            <h3>{d.name}</h3>
+                            <p className="muted">{d.faculty}</p>
+                            <p>{d.overview}</p>
+                            <span className="badge">{d.duration}</span>
+                            <span className="badge">{d.medium}</span>
+                            <span className={"demand " + (d.jobDemand === "Very High" ? "High" : "Medium")}>{d.jobDemand} demand</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
+                ) : (
+                  <div className="panel">
+                    <p>No degree programs found in the database for {selected.name} yet.</p>
+                  </div>
+                )}
               </div>
             )}
 
             {tab === "degrees" && degree && (
               <div className="panel">
-                <button className="back" onClick={() => setDegree(null)}>← All degrees</button>
+                <button
+                  type="button"
+                  className="back"
+                  style={{ position: "relative", zIndex: 10, cursor: "pointer" }}
+                  onClick={() => { pushHistory(); setDegree(null); }}
+                >
+                  ← All degrees
+                </button>
                 <div className="deg-head" style={{ background: selected.color }}>
                   <span className="banner-emoji">{degree.icon}</span>
                   <div>
@@ -278,6 +421,7 @@ function App() {
                 <div className="tabs">
                   {(["overview", "modules", "jobs", "demand"] as DegTab[]).map((t) => (
                     <button
+                      type="button"
                       key={t}
                       className={degTab === t ? "tab active" : "tab"}
                       onClick={() => setDegTab(t)}
@@ -297,18 +441,22 @@ function App() {
                   <div>
                     <p>{degree.description}</p>
                     <h4>Skills you will build</h4>
-                    {degree.skills.map((s) => <span key={s} className="badge">{s}</span>)}
+                    {degree.skills?.map((s) => <span key={s} className="badge">{s}</span>)}
                   </div>
                 )}
 
                 {degTab === "modules" && (
                   <div className="years">
-                    {degree.modules.map((m) => (
-                      <div key={m.year} className="year">
-                        <strong>{m.year}</strong>
-                        <ul>{m.subjects.map((s) => <li key={s}>{s}</li>)}</ul>
-                      </div>
-                    ))}
+                    {degree.modules?.length > 0 ? (
+                      degree.modules.map((m) => (
+                        <div key={m.year} className="year">
+                          <strong>{m.year}</strong>
+                          <ul>{m.subjects.map((s) => <span key={s}>{s}</span>)}</ul>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="muted">Year-by-year syllabus details will be updated soon.</p>
+                    )}
                   </div>
                 )}
 
@@ -324,10 +472,10 @@ function App() {
                     <p><span className={"demand " + degree.jobMarket.demand}>{degree.jobMarket.demand}</span> {degree.jobMarket.notes}</p>
 
                     <h4>Career paths</h4>
-                    {degree.careers.map((c) => <span key={c} className="badge">{c}</span>)}
+                    {degree.careers?.map((c) => <span key={c} className="badge">{c}</span>)}
 
                     <h4>Where you can work</h4>
-                    {degree.sectors.map((s) => <span key={s} className="badge green">{s}</span>)}
+                    {degree.sectors?.map((s) => <span key={s} className="badge green">{s}</span>)}
 
                     <h4>Future outlook</h4>
                     <p>{degree.jobMarket.outlook}</p>
