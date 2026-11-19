@@ -8,8 +8,8 @@ router.post('/suggest', (req, res) => {
 
   console.log(`Received request -> Stream: ${stream}, District: ${district}, Z-Score: ${numericZ}`);
 
-  // පළමුව අදාළ stream එකට සජීවීව database එකේ ඇති සියලුම courses ගෙන්වා ගනිමු
-  const query = `SELECT * FROM courses WHERE LOWER(TRIM(stream)) = LOWER(TRIM(?))`;
+  
+ const query = `SELECT * FROM courses WHERE LOWER(TRIM(stream)) = LOWER(TRIM(?))`;
 
   db.all(query, [stream], (err, rows) => {
     if (err) {
@@ -28,14 +28,14 @@ router.post('/suggest', (req, res) => {
           cutoffs = {};
         }
 
-        // දිස්ත්‍රික්කයේ නම case-insensitive ලෙස බැලීම
+        
         const matchingDistrictKey = Object.keys(cutoffs).find(
           d => d.toLowerCase() === district.toLowerCase()
         );
 
         const cutoffZ = matchingDistrictKey ? cutoffs[matchingDistrictKey] : null;
         
-        // පරීක්ෂාව සඳහා cutoff නැතත් දත්ත පෙන්වීමට අවශ්‍ය නම් පහත condition එක adjust කළ හැක
+        
         if (cutoffZ === undefined || cutoffZ === null) return null;
 
         const diff = numericZ - cutoffZ;
@@ -59,7 +59,7 @@ router.post('/suggest', (req, res) => {
   });
 });
 
-// අදාළ university එකට අදාළ courses ලබා ගැනීමට
+
 router.get('/university/:shortName', (req, res) => {
   const { shortName } = req.params;
   const query = `SELECT * FROM courses WHERE LOWER(TRIM(shortName)) = LOWER(TRIM(?))`;
