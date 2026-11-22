@@ -249,7 +249,23 @@ const ugcCourses = [
   }
 ];
 
-console.log('Seeding expanded UGC dataset into SQLite database...');
+const universitiesList = [
+  { name: "University of Colombo", shortname: "UOC" },
+  { name: "University of Peradeniya", shortname: "UOP" },
+  { name: "University of Sri Jayewardenepura", shortname: "USJ" },
+  { name: "University of Kelaniya", shortname: "UOK" },
+  { name: "University of Moratuwa", shortname: "UOM" },
+  { name: "University of Jaffna", shortname: "UOJ" },
+  { name: "University of Ruhuna", shortname: "UOR" },
+  { name: "South Eastern University of Sri Lanka", shortname: "SEUSL" },
+  { name: "Rajarata University of Sri Lanka", shortname: "RUSL" },
+  { name: "Sabaragamuwa University of Sri Lanka", shortname: "SUSL" },
+  { name: "Wayamba University of Sri Lanka", shortname: "WUSL" },
+  { name: "Uva Wellassa University", shortname: "UWU" },
+  { name: "University of Vavuniya", shortname: "UOV" }
+];
+
+console.log('Seeding expanded UGC dataset and universities into SQLite database...');
 
 db.serialize(() => {
   db.run(`DELETE FROM courses`, (err) => {
@@ -272,6 +288,23 @@ db.serialize(() => {
 
   stmt.finalize(() => {
     console.log(`✅ Successfully seeded ${ugcCourses.length} UGC degree programs across all streams!`);
+  });
+
+  db.run(`DELETE FROM universities`, (err) => {
+    if (err) console.error('Error clearing old universities:', err.message);
+  });
+
+  const uniStmt = db.prepare(`
+    INSERT INTO universities (name, shortname)
+    VALUES (?, ?)
+  `);
+
+  universitiesList.forEach(u => {
+    uniStmt.run(u.name, u.shortname);
+  });
+
+  uniStmt.finalize(() => {
+    console.log(`✅ Successfully seeded ${universitiesList.length} universities!`);
     process.exit(0);
   });
 });

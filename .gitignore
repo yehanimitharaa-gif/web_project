@@ -15,3 +15,8 @@ yarn-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# SQLite Database
+*.sqlite
+backend/database.sqlite
+database/database.sqlite
