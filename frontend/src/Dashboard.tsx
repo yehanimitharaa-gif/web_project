@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import DashboardStatCard from "./DashboardStatCard";
 import DashboardBarChart from "./DashboardBarChart";
 import "./Dashboard.css";
@@ -7,6 +7,85 @@ type Props = {
   user?: string | null;
   onNavigate?: (page: "dashboard" | "home" | "ranking" | "finder" | "hostel") => void;
 };
+
+type StatRecord = {
+  id?: number;
+  courseId: number;
+  uniId: number;
+  year: string;
+  intake?: number;
+  applications?: number;
+  cutoff?: number;
+  stream?: string;
+  courseName?: string;
+  courseCode?: string;
+  universityName?: string;
+  universityShortName?: string;
+};
+
+type CoupledChartItem = {
+  name: string;
+  courseId: number;
+  uniId: number;
+  courseName?: string;
+  courseCode?: string;
+  universityName?: string;
+  universityShortName?: string;
+  stream?: string;
+  "2024/25": number;
+  "2025/26": number;
+};
+
+/**
+ * Transforms raw records into grouped couple-wise items for the bar chart.
+ * Ensures data is ordered by courseId, and each couple has both 2024/25 and 2025/26.
+ */
+function transformCoupleData(
+  records: StatRecord[],
+  valueKey: "intake" | "cutoff" | "applications"
+): CoupledChartItem[] {
+  // 1. Order by courseId so same courseId stays together, then uniId and year
+  const sorted = [...records].sort((a, b) => {
+    if (a.courseId !== b.courseId) return a.courseId - b.courseId;
+    if (a.uniId !== b.uniId) return a.uniId - b.uniId;
+    return (a.year || "").localeCompare(b.year || "");
+  });
+
+  // 2. Group into couples
+  const map = new Map<string, CoupledChartItem>();
+
+  sorted.forEach((row) => {
+    const key = `${row.courseId}_${row.uniId}`;
+    if (!map.has(key)) {
+      const uniShort = row.universityShortName || (row.uniId ? `U${row.uniId}` : "");
+      const courseLabel = row.courseCode || (row.courseId ? `C${row.courseId}` : "Course");
+      const label = uniShort ? `${courseLabel} (${uniShort})` : courseLabel;
+
+      map.set(key, {
+        name: label,
+        courseId: row.courseId,
+        uniId: row.uniId,
+        courseName: row.courseName,
+        courseCode: row.courseCode,
+        universityName: row.universityName,
+        universityShortName: row.universityShortName,
+        stream: row.stream,
+        "2024/25": 0,
+        "2025/26": 0,
+      });
+    }
+
+    const item = map.get(key)!;
+    const val = Number(row[valueKey]) || 0;
+    if (row.year === "2024/25" || row.year?.includes("24")) {
+      item["2024/25"] = val;
+    } else if (row.year === "2025/26" || row.year?.includes("25")) {
+      item["2025/26"] = val;
+    }
+  });
+
+  return Array.from(map.values());
+}
 
 const STREAMS = [
   "Mathematics",
@@ -18,6 +97,47 @@ const STREAMS = [
 
 function Dashboard({ onNavigate }: Props) {
   const [selectedStream, setSelectedStream] = useState<string>("Mathematics");
+  const [statsData, setStatsData] = useState<{
+    highestIntakes: StatRecord[];
+    highestApplications: StatRecord[];
+    highestCuttoff: StatRecord[];
+  }>({
+    highestIntakes: [],
+    highestApplications: [],
+    highestCuttoff: [],
+  });
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/dashboard/stats")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setStatsData({
+            highestIntakes: data.highestIntakes || data.data?.highestIntakes || [],
+            highestApplications: data.highestApplications || data.data?.highestApplications || [],
+            highestCuttoff: data.highestCuttoff || data.data?.highestCuttoff || [],
+          });
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading dashboard stats:", err);
+      });
+  }, []);
+
+  const intakesChartData = useMemo(
+    () => transformCoupleData(statsData.highestIntakes, "intake"),
+    [statsData.highestIntakes]
+  );
+
+  const cutoffChartData = useMemo(
+    () => transformCoupleData(statsData.highestCuttoff, "cutoff"),
+    [statsData.highestCuttoff]
+  );
+
+  const applicationsChartData = useMemo(
+    () => transformCoupleData(statsData.highestApplications, "applications"),
+    [statsData.highestApplications]
+  );
 
   return (
     <div className="dashboard">
@@ -168,26 +288,39 @@ function Dashboard({ onNavigate }: Props) {
       <div className="dashboard-charts-layout">
         {/* Top Row: Two Simple Bar Charts */}
         <div className="dashboard-charts-row">
+          {/* Chart 1: highestIntakes */}
           <DashboardBarChart
-            title="University Intake Capacity by Stream"
-            description="Compares the allocated student intake volume across universities for the selected stream."
-            data={[]}
+            title="Highest Course Intakes"
+            description="Compares student intake volume between 2024/25 and 2025/26 for each course couple."
+            data={intakesChartData}
+            bars={[
+              { dataKey: "2024/25", fill: "#2563eb", name: "2024/25" },
+              { dataKey: "2025/26", fill: "#60a5fa", name: "2025/26" },
+            ]}
           />
+
+          {/* Chart 2: highestCuttoff */}
           <DashboardBarChart
-            title="Minimum Z-Score Cutoffs by District"
-            description="Displays the minimum entry threshold z-scores required across districts."
-            data={[]}
-            barColor="#3b82f6"
+            title="Highest Z-Score Cutoffs"
+            description="Compares minimum entry Z-score cutoffs between 2024/25 and 2025/26 for each course couple."
+            data={cutoffChartData}
+            bars={[
+              { dataKey: "2024/25", fill: "#8b5cf6", name: "2024/25" },
+              { dataKey: "2025/26", fill: "#c084fc", name: "2025/26" },
+            ]}
           />
         </div>
 
-        {/* Bottom Row: Bar Chart */}
+        {/* Chart 3: highestApplications (Bottom Row) */}
         <DashboardBarChart
-          title="Stream & Faculty Enrolment Distribution"
-          description="Displays student enrolment and distribution across faculties and streams."
-          data={[]}
-          barColor="#10b981"
-          height={300}
+          title="Highest Course Applications"
+          description="Compares total student applications received between 2024/25 and 2025/26 for each course couple."
+          data={applicationsChartData}
+          bars={[
+            { dataKey: "2024/25", fill: "#059669", name: "2024/25" },
+            { dataKey: "2025/26", fill: "#34d399", name: "2025/26" },
+          ]}
+          height={320}
         />
       </div>
     </div>
