@@ -17,6 +17,7 @@ type BarChartProps = {
   barKey?: string;
   barColor?: string;
   height?: number;
+  className?: string;
 };
 
 function DashboardBarChart({
@@ -27,9 +28,10 @@ function DashboardBarChart({
   barKey = "value",
   barColor = "#2563eb",
   height = 280,
+  className = "",
 }: BarChartProps) {
   return (
-    <div className="dashboard-chart-card">
+    <div className={`dashboard-chart-card ${className}`.trim()}>
       <div className="dashboard-chart-header">
         <h3 className="dashboard-chart-title">{title}</h3>
         {description && <p className="dashboard-chart-desc">{description}</p>}

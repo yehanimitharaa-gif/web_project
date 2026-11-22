@@ -51,34 +51,34 @@ db.serialize(() => {
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS highestIntakes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     courseId INTEGER,
     uniId INTEGER,
     year TEXT,
     intake INTEGER,
     stream TEXT,
-    PRIMARY KEY (courseId, uniId),
     FOREIGN KEY (courseId) REFERENCES courses(id),
     FOREIGN KEY (uniId) REFERENCES universities(id)
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS highestApplications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     courseId INTEGER,
     uniId INTEGER,
     year TEXT,
     applications INTEGER,
     stream TEXT,
-    PRIMARY KEY (courseId, uniId),
     FOREIGN KEY (courseId) REFERENCES courses(id),
     FOREIGN KEY (uniId) REFERENCES universities(id)
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS highestCuttoff (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     courseId INTEGER,
     uniId INTEGER,
     year TEXT,
     cutoff REAL,
     stream TEXT,
-    PRIMARY KEY (courseId, uniId),
     FOREIGN KEY (courseId) REFERENCES courses(id),
     FOREIGN KEY (uniId) REFERENCES universities(id)
   )`);

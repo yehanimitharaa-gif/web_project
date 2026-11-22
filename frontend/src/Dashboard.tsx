@@ -1,7 +1,6 @@
 import { useState } from "react";
 import DashboardStatCard from "./DashboardStatCard";
 import DashboardBarChart from "./DashboardBarChart";
-import DashboardPieChart from "./DashboardPieChart";
 import "./Dashboard.css";
 
 type Props = {
@@ -182,12 +181,13 @@ function Dashboard({ onNavigate }: Props) {
           />
         </div>
 
-        {/* Bottom Row: Two Level Pie Chart */}
-        <DashboardPieChart
+        {/* Bottom Row: Bar Chart */}
+        <DashboardBarChart
           title="Stream & Faculty Enrolment Distribution"
-          description="Two-level proportional breakdown showing inner faculty clusters and outer degree programs."
-          innerData={[]}
-          outerData={[]}
+          description="Displays student enrolment and distribution across faculties and streams."
+          data={[]}
+          barColor="#10b981"
+          height={300}
         />
       </div>
     </div>
