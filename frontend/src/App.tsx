@@ -5,12 +5,11 @@ import Login from "./Login";
 import Hostel from "./Hostel";
 import Finder from "./Finder";
 import DemandChart from "./DemandChart";
-import Dashboard from "./Dashboard";
 import { universities, rankings } from "./data";
 import type { University, Degree } from "./data";
 import { programMeta } from "./Demand";
 
-type Page = "dashboard" | "home" | "ranking" | "finder" | "hostel";
+type Page = "home" | "ranking" | "finder" | "hostel";
 type Tab = "about" | "registration" | "degrees";
 type DegTab = "overview" | "modules" | "jobs" | "demand";
 
@@ -88,7 +87,7 @@ function Banner({ uni }: { uni: University }) {
 
 function App() {
   const [user, setUser] = useState<string | null>(localStorage.getItem("unipath_current"));
-  const [page, setPage] = useState<Page>("dashboard");
+  const [page, setPage] = useState<Page>("home");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<University | null>(null);
   const [tab, setTab] = useState<Tab>("about");
@@ -149,7 +148,6 @@ function App() {
     setSelected(null);
     setDegree(null);
     setHistory([]);
-    setPage("dashboard");
   };
 
   if (!user) return <Login onLogin={login} />;
@@ -194,11 +192,10 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1 onClick={() => navigateToPage("dashboard")} style={{ cursor: "pointer" }}>
+        <h1 onClick={() => navigateToPage("home")} style={{ cursor: "pointer" }}>
           UniPath 🎓
         </h1>
         <nav>
-          <button type="button" onClick={() => navigateToPage("dashboard")}>Dashboard</button>
           <button type="button" onClick={() => navigateToPage("home")}>Universities</button>
           <button type="button" onClick={() => navigateToPage("finder")}>🎯 Find my degree</button>
           <button type="button" onClick={() => navigateToPage("hostel")}>🏠 Hostels</button>
@@ -221,8 +218,6 @@ function App() {
             </button>
           </div>
         )}
-
-        {page === "dashboard" && <Dashboard user={user} onNavigate={navigateToPage} />}
 
         {page === "finder" && <Finder onOpen={openFromFinder} />}
 
